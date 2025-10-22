@@ -52,7 +52,7 @@ ev3.speaker.beep()
 
 # Go back 15cm
 # Run motors to go back in 3 seconds
-backwards_speed = (180/math.pi)*( (0.15 / 3) / (WHEEL_DIAMETER / 2))
+backwards_speed = (180/math.pi)*( (0.15 / 3) / (WHEEL_DIAMETER / (2 * 100)))
 motor_right.run_time(-backwards_speed, 3_000, wait=False)
 motor_left.run_time(-backwards_speed, 3_000, wait=False)
 
@@ -90,4 +90,6 @@ while distance_travelled < 2_200:
 motor_right.stop()
 motor_left.stop()
 
+ev3.speaker.beep()
+wait(100)
 ev3.speaker.beep()
