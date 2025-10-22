@@ -52,14 +52,14 @@ ev3.speaker.beep()
 
 # Go back 15cm
 # Run motors to go back in 3 seconds
-backwards_speed = (180/math.pi)*( (0.15 / 3) / (WHEEL_DIAMETER / (2 * 100)))
+backwards_speed = (180/math.pi)*( (0.30 / 3) / (WHEEL_DIAMETER / (2 * 1000)))
 motor_right.run_time(-backwards_speed, 3_000, wait=False)
 motor_left.run_time(-backwards_speed, 3_000, wait=False)
 
-wait(3_000)
+wait(1_000)
 ev3.speaker.beep()
 
-# turn 90 degrees to the right
+# turn 90 degrees to the right      
 turn_speed = FRICTION*90/1_500
 motor_right.run_time(turn_speed, 1_500, wait=False)
 motor_left.run_time(-turn_speed, 1_500, wait=False)
@@ -70,7 +70,7 @@ ev3.speaker.beep()
 distance_travelled = 0
 while distance_travelled < 2_200:
     distance_to_wall = ultrasonic_sensor.distance()
-    error = distance_to_wall - 250  # target distance is 250 mm
+    error = distance_to_wall - 200  # target distance is 250 mm
     Kp = 1.2  # Proportional gain
     correction = Kp * error
 
