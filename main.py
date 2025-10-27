@@ -2,7 +2,7 @@
 from pybricks.hubs import EV3Brick
 from pybricks.ev3devices import (Motor, TouchSensor, UltrasonicSensor)
 from pybricks.parameters import Port, Button
-from pybricks.tools import wait
+from pybricks.tools import wait, StopWatch
 import math
 
 
@@ -59,7 +59,6 @@ def find_wall():
             break
         
         wait(50)
-
 def follow_wall(follow_distance):
     # Resets total degrees the motors have turned so far
     motor_left.reset_angle(0)
@@ -78,10 +77,25 @@ def follow_wall(follow_distance):
     motor_left.run_time(rotations_for_10cm, 1000, wait=False)
     motor_right.run_time(rotations_for_10cm, 1000, wait=True)
 
-    last_error = 0
+    # --- simple PID (no classes) ---
+    kp = K_P                 # reuse your K_P
+    ki = 0.0                 # start at 0; raise if you need bias removal
+    kd = 120.0               # derivative gain; tune as needed
+    i_min, i_max = -200.0, 200.0
+    pid_i = 0.0
+    last_error = 0.0
+
+    clock = StopWatch()
+    last_ms = clock.time()
+    # --------------------------------
+
     accumulated_turn = 0
 
     while True:
+        now = clock.time()
+        dt = max((now - last_ms) / 1000.0, 0.001)  # seconds
+        last_ms = now
+
         right_angle = motor_right.angle()
         left_angle = motor_left.angle()
         d_right_angle = math.radians(right_angle - prev_right_angle)
@@ -95,7 +109,7 @@ def follow_wall(follow_distance):
         d_center_distance = (d_right_distance + d_left_distance) / 2
 
         # Determines wall angle
-        curr_distance_from_wall = ultrasonic_sensor.distance() / 1000 # Convert mm to meters
+        curr_distance_from_wall = ultrasonic_sensor.distance() / 1000  # m
         if curr_distance_from_wall > 0.3:
             find_wall()
         d_distance_from_wall = curr_distance_from_wall - prev_distance_from_wall
@@ -104,7 +118,6 @@ def follow_wall(follow_distance):
         wall_angle = 0
         if abs(d_center_distance) > 1e-4:
             wall_angle = math.atan(d_distance_from_wall / d_center_distance)
-
 
         # Updates total distance along wall
         distance_along_wall = d_center_distance * math.cos(wall_angle)
@@ -116,19 +129,20 @@ def follow_wall(follow_distance):
             ev3.speaker.beep()
             break
 
+        # --- PID correction (replaces old correction block) ---
         error = TARGET_DISTANCE_FROM_WALL - curr_distance_from_wall
-        delta_error = error - last_error
+        # integral with clamp
+        pid_i += error * dt
+        if pid_i > i_max: pid_i = i_max
+        if pid_i < i_min: pid_i = i_min
+        # derivative on error
+        d_err = (error - last_error) / dt
         last_error = error
 
-        # if delta_error is high and positive, robot is getting far from wall and too fast
-        # if delta_error is high and negative, robot is getting too close to wall too fast
-        # Do not have long accumulated turns
-        # account for the case where if turning left and the error is increasing, must be too steep of angle to wall and same thing for turning right (error dec)
-        correction = K_P * error + ((K_P / 2) * delta_error) ** 2
-    
+        correction = kp * error + ki * pid_i + kd * d_err  # deg/s output target
+        # -----------------------------------------------------
 
         correction_deg_from_center = correction * RADIAN_CONVERSION
-
 
         left_speed = FOLLOW_WALL_SPEED + correction
         right_speed = FOLLOW_WALL_SPEED - correction
@@ -138,9 +152,13 @@ def follow_wall(follow_distance):
         right_speed = max(min(right_speed, max_speed), -max_speed)
 
         accumulated_turn += abs(left_speed - right_speed) * 0.15 / RADIAN_CONVERSION
-        
-        # no format srtings on micropython
-        ev3.screen.print("Dist: " + str(curr_distance_from_wall) + "Err: " + str(error) + "\n dErr: " + str(delta_error) + "Corr: " + str(correction) + "\n AngCorr: " + str(correction_deg_from_center) + "AccumTurn: " + str(accumulated_turn) + "\n TotalDist: " + str(total_distance_along_wall))
+
+        ev3.screen.print(
+            "Dist: " + str(curr_distance_from_wall) + "Err: " + str(error) +
+            "\n dErr: " + str(d_err) + "Corr: " + str(correction) +
+            "\n AngCorr: " + str(correction_deg_from_center) + "AccumTurn: " + str(accumulated_turn) +
+            "\n TotalDist: " + str(total_distance_along_wall)
+        )
 
         motor_left.run(left_speed)
         motor_right.run(right_speed)
@@ -148,13 +166,11 @@ def follow_wall(follow_distance):
         wait(150)
         ev3.screen.clear()
 
-
         if Button.CENTER in ev3.buttons.pressed():
             ev3.speaker.beep()
             motor_left.stop()
             motor_right.stop()
             break
-
 
 # Starts robot on button press
 wait_for_center_button()
