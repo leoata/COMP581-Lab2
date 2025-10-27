@@ -13,9 +13,9 @@ WHEEL_DIAMETER = 0.056
 WHEEL_RADIUS = WHEEL_DIAMETER / 2
 AXLE_LENGTH = 0.092
 RADIAN_CONVERSION = 180 / math.pi
-TO_WALL_SPEED = 4 * RADIAN_CONVERSION
+TO_WALL_SPEED = 10 * RADIAN_CONVERSION
 BACKUP_SPEED = (.17 / .056) * RADIAN_CONVERSION
-FOLLOW_WALL_SPEED = 3 * RADIAN_CONVERSION
+FOLLOW_WALL_SPEED = 2 * RADIAN_CONVERSION
 RIGHT_TURN_AV = 1.29 * (math.pi / 4) * (AXLE_LENGTH / (2 * WHEEL_RADIUS)) * RADIAN_CONVERSION
 TARGET_DISTANCE_FROM_WALL = 0.12
 K_P = 500 # proportional gain
@@ -52,9 +52,6 @@ def follow_wall(follow_distance):
 
     total_distance_along_wall = 0
 
-    integral = 0
-    previous_error = 0
-
     while True:
         right_angle = motor_right.angle()
         left_angle = motor_left.angle()
@@ -70,6 +67,7 @@ def follow_wall(follow_distance):
 
         # Determines wall angle
         curr_distance_from_wall = ultrasonic_sensor.distance() / 1000 # Convert mm to meters
+        ev3.screen.print(curr_distance_from_wall)
         d_distance_from_wall = curr_distance_from_wall - prev_distance_from_wall
         prev_distance_from_wall = curr_distance_from_wall
 
@@ -101,7 +99,9 @@ def follow_wall(follow_distance):
         motor_left.run(left_speed)
         motor_right.run(right_speed)
 
-        wait(50)
+        wait(300)
+        ev3.screen.clear()
+
 
         if Button.CENTER in ev3.buttons.pressed():
             ev3.speaker.beep()
